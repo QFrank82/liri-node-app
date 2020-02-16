@@ -1,145 +1,151 @@
 require("dotenv").config();
-//Add the code required to import the keys.js file and store it in a variable.
-var keys = require("./keys");
-var axios = require("axios");
-var moment = require("moment");
-var Spotify = require('node-spotify-api');
-var fs = require("fs");
-var spotify = new Spotify({
-  id: keys.spotify.id,
-  secret: keys.spotify.secret,
-});
-// var defaultSong = require("The Sign");
-var defaultMovie = "Mr. Nobody";
-// var spotify = new Spotify(keys.spotify);
 
-
-
-/**
- * Name of the venue
-Venue location
-Date of the Event (use moment to format this as "MM/DD/YYYY")
- */
-var action = process.argv[2];
-var value = process.argv[3];
-
-switch (action) {
-  case "concert-this":
-    getBands(value)
-    break;
-  case "spotify-this-song":
-    //If user has not specified a song , use default
-    // if (value === "") {
-    //   value = defaultSong;
-    // }
-    getSongs(value)
-    break;
-  case "movie-this":
-    //If user has not specified a movie , use default
-    if (value == "") {
-      value = defaultMovie;
-    }
-    getMovies(value)
-    break;
-  case "do-what-it-says":
-    doWhatItSays()
-    break;
-  default:
-    break;
-}
-function getBands(artist) {
-  // var artist = value;
-  axios.get("https://rest.bandsintown.com/artists/" + artist + "/events?app_id=codingbootcamp")
-    .then(function (response) {
-      console.log("Name of the venue:", response.data[0].venue.name);
-      console.log("Venue location:", response.data[0].venue.city);
-      var eventDate = moment(response.data[0].datetime).format('MM/DD/YYYY');
-      console.log("Date of the Event:", eventDate);
-    })
-    .catch(function (error) {
-      console.log(error);
-    });
+//packages and files required
+const keys = require("./keys.js");
+const axios = require("axios");
+const fs = require("fs");
+const moment = require("moment");
+const Spotify = require("node-spotify-api");
+//variables to hold user input 
+let command = process.argv[2];
+let searchArgs = process.argv;
+let search = "";
+//loop to get all of the words in the title, artist, etc the user searches 
+for (let i = 3; i < searchArgs.length; i++) {
+  if (i > 3 && i < searchArgs.length) {
+    search = search + "+" + searchArgs[i];
+  } else {
+    search += searchArgs[i];
+  }
 }
 
-function getSongs(songName) {
-  // var songName = value;
+function runLiri(command, search) {
 
-  //If user has not specified a song , default to "Voodoo Child" by Jimi Hendrix
-  if (songName === "") {
-    songName = "Voodoo Child";
+  switch(command) {
+    case "movie-this":
+      movieThis(search);
+      break; 
+
+    case "concert-this":
+      concertThis(search);
+      break;
+
+    case "spotify-this-song":
+      spotifyThis(search);
+      break;
+
+    case "do-what-it-says":
+      doWhatItSays();
+      break;
   }
 
-  spotify.search({ type: 'track', query: songName }, function (err, data) {
-    if (err) {
-      return console.log('Error occurred: ' + err);
-    }
-    // else {
-    //   console.log("Not right now. Later?")
+}
 
-    // console.log(JSON.stringify(data)); 
-
-    // The song's name
-
-    //Artist(s)
-    console.log("Artists: ", data.tracks.items[0].album.artists[0].name)
-    // A preview link of the song from Spotify
-    console.log("Preview Link: ", data.tracks.items[0].preview_url)
-    // The album that the song is from
-    console.log("Album Name: ", data.tracks.items[0].album.name)
+function movieThis(search) {
+  let movieQueryURL = "http://www.omdbapi.com/?t=" + search + "&y=&plot=short&apikey=trilogy";
+  axios.get(movieQueryURL).then(
+    function(response) {
+      if (response.data.Response === "False") {
+        console.log("If you haven't watched 'Mr. Nobody,' then you should: http://www.imdb.com/title/tt0485947/");
+        console.log("It's on Netflix!");
+      } else {
+        console.log("--------------------------------------------------------------------------------");
+        console.log("Title: " + response.data.Title);
+        console.log("Year: " + response.data.Year);
+        console.log("IMDB Rating: " + response.data.imdbRating);
+        console.log("Rotten Tomatoes: " + response.data.Ratings[1].Value);
+        console.log("Country: " + response.data.Country);
+        console.log("Language: " + response.data.Language);
+        console.log("Plot: " + response.data.Plot);
+        console.log("Actors: " + response.data.Actors);
+        console.log("--------------------------------------------------------------------------------");
+      }
+    })
+    .catch(function(error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.log("---------------Data---------------");
+        console.log(error.response.data);
+        console.log("---------------Status---------------");
+        console.log(error.response.status);
+        console.log("---------------Status---------------");
+        console.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an object that comes back with details pertaining to the error that occurred.
+        console.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.log("Error", error.message);
+      }
+      console.log(error.config);
   });
 }
 
-function getMovies(movieName) {
-  // var movieName = value;
-  axios.get("http://www.omdbapi.com/?i=tt3896198&apikey=ed21f0a4" + movieName)
-    .then(function (data) {
-      // console.log(data.data); 
-      var results = `
-      Title of the movie: ${data.data.Title}
-      Year the movie came out: ${data.data.Year}
-      IMDB Rating of the movie: ${data.data.Rated}
-      Rotten Tomatoes Rating of the movie: ${data.data.Ratings[1].Value}
-      Country where the movie was produced: ${data.data.Country}
-      Language of the movie: ${data.data.Language}
-      Plot of the movie: ${data.data.Plot}
-      Actors in the movie: ${data.data.Actors}`;
-      console.log(results)
-
-      // console.log(data);
-      // console.log("Name of the venue:", response.data[0].venue.name);
-      // console.log("Venue location:", response.data[0].venue.city);
-      // var eventDate = moment(response.data[0].datetime).format('MM/DD/YYYY');
-      // console.log("Date of the Event:", eventDate);
+function concertThis(search) {
+  let concertQueryURL = "https://rest.bandsintown.com/artists/" + search + "/events?app_id=codingbootcamp"
+  axios.get(concertQueryURL).then(
+    function(response) {
+      for (let i = 0; i < 10; i++) {
+        console.log("--------------------------------------------------------------------------------");
+        console.log("Venue: " + response.data[i].venue.name);
+        console.log("Location: " + response.data[i].venue.city + ", " + response.data[i].venue.country);
+        console.log("Date: " + moment(response.data[i].datetime).format("MM/DD/YYYY"));
+      }
     })
-    .catch(function (error) {
-      console.log(error);
-    });
-    //Response if user does not type in a movie title
-    if (movieName === "Mr. Nobody") {
-      console.log("-----------------------");
-      console.log("If you haven't watched 'Mr. Nobody,' then you should: http://www.imdb.com/title/tt0485947/");
-      console.log("It's on Netflix!");
-  };
+    .catch(function(error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.log("---------------Data---------------");
+        console.log(error.response.data);
+        console.log("---------------Status---------------");
+        console.log(error.response.status);
+        console.log("---------------Status---------------");
+        console.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an object that comes back with details pertaining to the error that occurred.
+        console.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.log("Error", error.message);
+      }
+      console.log(error.config);
+  });
+}
+
+function spotifyThis(search) {
+  let spotify = new Spotify(keys.spotify);
+  if (!search) {
+    search = "The Sign";
+  }
+    spotify.search({type: "track", query: search}, function(error, data) {
+      let results = data.tracks.items;
+      if (error) {
+        console.log("Sorry, there was an error.");
+      }
+        for (let i = 0; i < 5; i++) {
+        console.log("--------------------------------------------------------------------------------");
+        console.log("Artist: " + results[i].artists[0].name);
+        console.log("Song: " + results[i].name);
+        console.log("Preview: " + results[i].preview_url);
+        console.log("Album: " + results[i].album.name);
+      }
+    })
 }
 
 function doWhatItSays() {
-  fs.readFile("random.txt", "utf8", function (err, data) {
-    data = data.split(",");
-    var action = data[0]
-    var value = data[1]
-    // getSongs(value)
-    switch (action) {
-      case "concert-this":
-        getBands(value)
-        break;
-      case "spotify-this-song":
-        getSongs(value)
-        break;
-      case "movie-this":
-        getMovies(value)
-        break;
-      default:
-        break;
+  fs.readFile("random.txt", "utf8", function(error, data) {
+    if (error) {
+      return console.log(error);
     }
+    let dataArr = data.split(',');
+    // console.log(dataArr[0], dataArr[1]);
+    // console.log(dataArr[0], dataArr[1].replace(/['"]+/g, ''));
+    runLiri(dataArr[0], dataArr[1].replace(/['"]+/g, ''));
   });
 }
+
+runLiri(command, search);
